@@ -55,6 +55,7 @@ public @interface EnableDubboConfigBinding {
      *
      * @return the name prefix of the properties to bind
      */
+    //配置前缀
     String prefix();
 
     /**
@@ -64,6 +65,7 @@ public @interface EnableDubboConfigBinding {
      * @see ModuleConfig
      * @see RegistryConfig
      */
+    //配置类
     Class<? extends AbstractConfig> type();
 
     /**
@@ -71,6 +73,7 @@ public @interface EnableDubboConfigBinding {
      *
      * @return the default value is <code>false</code>
      */
+    //是否 multiple
     boolean multiple() default false;
 
 }

@@ -46,6 +46,7 @@ import java.util.Map;
  *
  * @export
  */
+//抽象接口配置类
 public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
     private static final long serialVersionUID = -1559314110797223229L;
@@ -102,8 +103,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     // the scope for referring/exporting a service, if it's local, it means searching in current JVM only.
     private String scope;
 
+    //校验 RegistryConfig 配置。
     protected void checkRegistry() {
-        // for backward compatibility
+        // 当 RegistryConfig 对象数组为空时，若有 `dubbo.registry.address` 配置，进行创建。
+        // for backward compatibility 向后兼容
         if (registries == null || registries.isEmpty()) {
             String address = ConfigUtils.getProperty("dubbo.registry.address");
             if (address != null && address.length() > 0) {
@@ -125,14 +128,17 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     + Version.getVersion()
                     + ", Please add <dubbo:registry address=\"...\" /> to your spring config. If you want unregister, please set <dubbo:service registry=\"N/A\" />");
         }
+        // 读取环境变量和 properties 配置到 RegistryConfig 对象数组。
         for (RegistryConfig registryConfig : registries) {
             appendProperties(registryConfig);
         }
     }
 
     @SuppressWarnings("deprecation")
+    //校验 ApplicationConfig 配置
     protected void checkApplication() {
-        // for backward compatibility
+        // 当 ApplicationConfig 对象为空时，若有 `dubbo.application.name` 配置，进行创建。
+        // for backward compatibility //向后兼容
         if (application == null) {
             String applicationName = ConfigUtils.getProperty("dubbo.application.name");
             if (applicationName != null && applicationName.length() > 0) {
@@ -143,8 +149,9 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             throw new IllegalStateException(
                     "No such application config! Please add <dubbo:application name=\"...\" /> to your spring config.");
         }
+        // 读取环境变量和 properties 配置到 ApplicationConfig 对象。
         appendProperties(application);
-
+        // 初始化优雅停机的超时时长
         String wait = ConfigUtils.getProperty(Constants.SHUTDOWN_WAIT_KEY);
         if (wait != null && wait.trim().length() > 0) {
             System.setProperty(Constants.SHUTDOWN_WAIT_KEY, wait.trim());
@@ -255,6 +262,9 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         return null;
     }
 
+    //校验接口和方法。主要是两方面：
+    //1、 接口类非空，并是接口
+    //2、 方法在接口中已定义
     protected void checkInterfaceAndMethods(Class<?> interfaceClass, List<MethodConfig> methods) {
         // interface cannot be null
         if (interfaceClass == null) {

@@ -33,7 +33,7 @@ public class DubboConfigConfigurationSelector implements ImportSelector, Ordered
 
     @Override
     public String[] selectImports(AnnotationMetadata importingClassMetadata) {
-
+       // 获得 @EnableDubboConfig 注解的属性
         AnnotationAttributes attributes = AnnotationAttributes.fromMap(
                 importingClassMetadata.getAnnotationAttributes(EnableDubboConfig.class.getName()));
 

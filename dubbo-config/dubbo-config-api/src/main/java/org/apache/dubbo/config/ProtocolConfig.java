@@ -39,58 +39,66 @@ public class ProtocolConfig extends AbstractConfig {
 
     private static final long serialVersionUID = 6913423882496634749L;
 
-    // protocol name
+    //协议名称 缺省值：dubbo
     private String name;
 
     // service IP address (when there are multiple network cards available)
+    //-服务主机名，多网卡选择或指定VIP及域名时使用，为空则自动查找本机IP，
+    // -建议不要配置，让Dubbo自动获取本机IP
     private String host;
 
-    // service port
+    // 端口 ：dubbo协议缺省端口为20880，rmi协议缺省端口为1099，http和hessian协议缺省端口为80；如果没有配置port，则自动采用默认端口，如果配置为-1，则会分配一个没有被占用的端口。
+    // Dubbo 2.4.0+，分配的端口在协议缺省端口的基础上增长，确保端口段可控。
     private Integer port;
 
     // context path
     private String contextpath;
 
-    // thread pool
+    // 线程池类型
     private String threadpool;
 
     // thread pool core thread size
     private Integer corethreads;
 
-    // thread pool size (fixed size)
+    //服务线程池大小(固定大小)
     private Integer threads;
 
-    // IO thread pool size (fixed size)
+    //o线程池大小(固定大小)
     private Integer iothreads;
 
-    // thread pool's queue length
+    //线程池队列大小，当线程池满时，排队等待执行的队列大小，建议不要设置，
+    // 当线程池满时应立即失败，重试其它服务提供机器，而不是排队，除非有特殊需求。
     private Integer queues;
 
-    // max acceptable connections
+    // 服务提供方最大可接受连接数
     private Integer accepts;
 
-    // protocol codec
+    // 协议编码方式
     private String codec;
 
-    // serialization
+    // dubbo协议缺省为hessian2，rmi协议缺省为java，http协议缺省为json
+    //协议序列化方式，当协议支持多种序列化方式时使用，
+    //比如：dubbo协议的dubbo,hessian2,java,compactedjava，以及http协议的json等
     private String serialization;
 
-    // charset
+    // 序列化编码
     private String charset;
 
-    // payload max length
+    // 请求及响应数据包大小限制，单位：字节
     private Integer payload;
 
-    // buffer size
+    // 网络读写缓冲区大小
     private Integer buffer;
 
-    // heartbeat interval
+    // 心跳间隔，对于长连接，当物理层断开时，
+    // 比如拔网线，TCP的FIN消息来不及发送，对方收不到断开事件，此时需要心跳来帮助检查连接是否已断开
     private Integer heartbeat;
 
-    // access log
+    // 设为true，将向logger中输出访问日志，也可填写访问日志文件路径，直接把访问日志输出到指定文件
     private String accesslog;
 
-    // transfort
+    // dubbo协议缺省为netty
+    // 协议的服务端和客户端实现类型，比如：dubbo协议的mina,netty等，可以分拆为server和client配置
     private String transporter;
 
     // how information is exchanged
@@ -108,7 +116,7 @@ public class ProtocolConfig extends AbstractConfig {
     // client impl
     private String client;
 
-    // supported telnet commands, separated with comma.
+    // 所支持的telnet命令，多个命令用逗号分隔
     private String telnet;
 
     // command line prompt
@@ -117,7 +125,7 @@ public class ProtocolConfig extends AbstractConfig {
     // status check
     private String status;
 
-    // whether to register
+    // 该协议的服务是否注册到注册中心
     private Boolean register;
 
     // parameters

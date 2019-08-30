@@ -30,25 +30,26 @@ public class MethodConfig extends AbstractMethodConfig {
 
     private static final long serialVersionUID = 884908855422675941L;
 
-    // method name
+    // 方法名
     private String name;
 
     // stat
     private Integer stat;
 
-    // whether to retry
+    // 是否重试
     private Boolean retry;
 
     // if it's reliable
     private Boolean reliable;
 
-    // thread limits for method invocations
+    // 每服务每方法最大使用线程数限制- -，
+    // 此属性只在<dubbo:method>作为<dubbo:service>子标签时有效
     private Integer executes;
 
-    // if it's deprecated
+    // 服务方法是否过时，此属性只在<dubbo:method>作为<dubbo:service>子标签时有效
     private Boolean deprecated;
 
-    // whether to enable sticky
+    // 设置true 该接口上的所有方法使用同一个provider.如果需要更复杂的规则，请使用用路由
     private Boolean sticky;
 
     // whether need to return

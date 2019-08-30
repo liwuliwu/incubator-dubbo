@@ -68,24 +68,42 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see java.net.URL
  * @see java.net.URI
  */
+//所有配置最终都将转换为 Dubbo URL 表示，并由服务提供方生成，经注册中心传递给消费方，
+// 各属性对应 URL 的参数，参见配置项一览表中的 “对应URL参数” 列。
+// 那么一个 Service 注册到注册中心的格式如下
+// dubbo://192.168.3.17:20880/
+// com.alibaba.dubbo.demo.DemoService?
+// anyhost=true&application=demo-provider
+// &default.delay=-1&default.retries=0
+// &default.service.filter=demoFilter
+// &delay=-1&dubbo=2.0.0&generic=false
+// &interface=com.alibaba.dubbo.demo.DemoService
+// &methods=sayHello
+// &pid=19031&side=provider&timestamp=1519651641799
+//protocol://username:password@host:port/path?key=value&key=value
 public /**final**/ class URL implements Serializable {
 
     private static final long serialVersionUID = -1985165475234910535L;
 
+    //协议名
     private final String protocol;
-
+    //用户名
     private final String username;
-
+    //密码
     private final String password;
 
     // by default, host to registry
+    //地址
     private final String host;
 
     // by default, port to registry
+    // 端口
     private final int port;
 
+    //路径（服务名）
     private final String path;
 
+    //参数集合
     private final Map<String, String> parameters;
 
     // ==== cache ====

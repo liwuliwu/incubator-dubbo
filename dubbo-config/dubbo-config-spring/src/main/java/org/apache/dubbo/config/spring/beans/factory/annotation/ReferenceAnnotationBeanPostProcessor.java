@@ -67,6 +67,7 @@ import static org.springframework.core.annotation.AnnotationUtils.getAnnotation;
  *
  * @since 2.5.7
  */
+//扫描 @Reference 注解的类，创建对应的 Spring BeanDefinition 对象，从而创建 Dubbo Reference Bean 对象。
 public class ReferenceAnnotationBeanPostProcessor extends InstantiationAwareBeanPostProcessorAdapter
         implements MergedBeanDefinitionPostProcessor, PriorityOrdered, ApplicationContextAware, BeanClassLoaderAware,
         DisposableBean {
@@ -82,9 +83,15 @@ public class ReferenceAnnotationBeanPostProcessor extends InstantiationAwareBean
 
     private ClassLoader classLoader;
 
+
     private final ConcurrentMap<String, ReferenceInjectionMetadata> injectionMetadataCache =
             new ConcurrentHashMap<String, ReferenceInjectionMetadata>(256);
 
+    /**
+     * ReferenceBean 缓存 Map
+     *
+     * KEY：Reference Bean 的名字
+     */
     private final ConcurrentMap<String, ReferenceBean<?>> referenceBeansCache =
             new ConcurrentHashMap<String, ReferenceBean<?>>();
 

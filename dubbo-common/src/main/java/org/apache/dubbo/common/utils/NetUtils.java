@@ -116,6 +116,7 @@ public class NetUtils {
         return "0.0.0.0".equals(host);
     }
 
+    //判断host是否为不可用的本地Host
     public static boolean isInvalidLocalHost(String host) {
         return host == null
                 || host.length() == 0
