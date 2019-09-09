@@ -30,6 +30,7 @@ public interface Exporter<T> {
      *
      * @return invoker
      */
+    //获得对应的 Invoker
     Invoker<T> getInvoker();
 
     /**
@@ -39,6 +40,7 @@ public interface Exporter<T> {
      * getInvoker().destroy();
      * </code>
      */
+    //取消暴露
     void unexport();
 
 }

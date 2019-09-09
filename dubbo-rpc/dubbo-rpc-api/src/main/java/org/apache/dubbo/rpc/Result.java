@@ -34,6 +34,7 @@ public interface Result extends Serializable {
      *
      * @return result. if no result return null.
      */
+    //获得返回值
     Object getValue();
 
     /**
@@ -41,6 +42,7 @@ public interface Result extends Serializable {
      *
      * @return exception. if no exception return null.
      */
+    //获得返回的异常
     Throwable getException();
 
     /**
@@ -48,6 +50,7 @@ public interface Result extends Serializable {
      *
      * @return has exception.
      */
+    //是否有异常
     boolean hasException();
 
     /**

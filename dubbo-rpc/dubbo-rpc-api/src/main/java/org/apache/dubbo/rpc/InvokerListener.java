@@ -31,6 +31,7 @@ public interface InvokerListener {
      * @throws RpcException
      * @see org.apache.dubbo.rpc.Protocol#refer(Class, org.apache.dubbo.common.URL)
      */
+    //当服务引用完成
     void referred(Invoker<?> invoker) throws RpcException;
 
     /**
@@ -39,6 +40,7 @@ public interface InvokerListener {
      * @param invoker
      * @see org.apache.dubbo.rpc.Invoker#destroy()
      */
+    //当服务销毁引用完成
     void destroyed(Invoker<?> invoker);
 
 }

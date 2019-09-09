@@ -33,6 +33,7 @@ public interface Invocation {
      * @return method name.
      * @serial
      */
+    //获得方法名。
     String getMethodName();
 
     /**
@@ -41,6 +42,7 @@ public interface Invocation {
      * @return parameter types.
      * @serial
      */
+    //获得方法参数类型数组
     Class<?>[] getParameterTypes();
 
     /**
@@ -49,6 +51,7 @@ public interface Invocation {
      * @return arguments.
      * @serial
      */
+    //获得方法参数数组
     Object[] getArguments();
 
     /**
@@ -57,6 +60,7 @@ public interface Invocation {
      * @return attachments.
      * @serial
      */
+    //获得隐式参数相关
     Map<String, String> getAttachments();
 
     /**
@@ -81,6 +85,7 @@ public interface Invocation {
      * @return invoker.
      * @transient
      */
+    //获得对应的 Invoker 对象。
     Invoker<?> getInvoker();
 
 }
