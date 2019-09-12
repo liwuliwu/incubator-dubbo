@@ -351,10 +351,15 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         unexported = true;
     }
 
+    // 暴露 Dubbo URL
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
-        List<URL> registryURLs = loadRegistries(true);
+        // 加载注册中心 URL 数组
+        List<URL> registryURLs = loadRegistries(true);//加载注册中心的 com.alibaba.dubbo.common.URL` 数组。
+        // 循环 `protocols` ，向逐个注册中心分组暴露服务。
         for (ProtocolConfig protocolConfig : protocols) {
+            //使用对应的协议，逐个向注册中心分组暴露服务。在这个方法中，包含了本地和远程两种暴露方式。
+            // 在下文中，我们会看到，本地暴露不会向注册中心注册服务，因为仅仅用于 JVM 内部本地调用，内存中已经有相关信息。
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }

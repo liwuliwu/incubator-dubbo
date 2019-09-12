@@ -158,7 +158,14 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         }
     }
 
+    /**
+     2:  * 加载注册中心 URL 数组
+     3:  *
+     4:  * @param provider 是否是服务提供者
+     5:  * @return URL 数组
+     6:  */
     protected List<URL> loadRegistries(boolean provider) {
+        // 校验 RegistryConfig 配置数组。
         checkRegistry();
         List<URL> registryList = new ArrayList<URL>();
         if (registries != null && !registries.isEmpty()) {

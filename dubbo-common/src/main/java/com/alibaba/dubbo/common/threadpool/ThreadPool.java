@@ -26,6 +26,7 @@ import java.util.concurrent.Executor;
 /**
  * ThreadPool
  */
+//Dubbo SPI 拓展点，默认为 "fixed"
 @SPI("fixed")
 public interface ThreadPool {
 
@@ -35,7 +36,9 @@ public interface ThreadPool {
      * @param url URL contains thread parameter
      * @return thread pool
      */
+    //基于 Dubbo SPI Adaptive 机制，加载对应的线程池实现，使用 URL.threadpool 属性。
     @Adaptive({Constants.THREADPOOL_KEY})
+    //获得对应的线程池的执行器
     Executor getExecutor(URL url);
 
 }

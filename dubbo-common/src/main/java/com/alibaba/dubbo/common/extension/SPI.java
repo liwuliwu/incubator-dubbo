@@ -54,6 +54,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})
+//扩展点接口的标识
 public @interface SPI {
 
     /**
