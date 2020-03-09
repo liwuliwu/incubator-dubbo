@@ -49,6 +49,8 @@ public class ProtocolListenerWrapper implements Protocol {
         return protocol.getDefaultPort();
     }
 
+    //他做的就是讲Exporter包装成ListenerExporterWrapper的实例
+    //他是原来的exporter和从spi扩展点中获取的ExporterListener的实例组成
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {

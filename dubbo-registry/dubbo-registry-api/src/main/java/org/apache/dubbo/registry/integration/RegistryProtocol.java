@@ -126,30 +126,39 @@ public class RegistryProtocol implements Protocol {
         Registry registry = registryFactory.getRegistry(registryUrl);
         registry.register(registedProviderUrl);
     }
-
+    //注册协议做的事情很简单先进行本地暴露，获取响应的注册中心，
+    // 想注册中心注册要暴露的服务，
+    // 设置订阅，注册中心信息发生改变后会通知服务，进行数据的更新。
+    // 说起来很容易，但是其实里面封装了大量的内容
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
-        //export invoker
+        // 暴露服务
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker);
 
+        // 获得注册中心 URL
         URL registryUrl = getRegistryUrl(originInvoker);
 
-        //registry provider
+        // 获得注册中心对象
         final Registry registry = getRegistry(originInvoker);
+
+        // 获得服务提供者 URL
         final URL registeredProviderUrl = getRegisteredProviderUrl(originInvoker);
 
         //to judge to delay publish whether or not
         boolean register = registeredProviderUrl.getParameter("register", true);
 
+        // 向本地注册表，注册服务提供者
         ProviderConsumerRegTable.registerProvider(originInvoker, registryUrl, registeredProviderUrl);
 
+        // 向注册中心注册服务提供者（自己）
         if (register) {
             register(registryUrl, registeredProviderUrl);
             ProviderConsumerRegTable.getProviderWrapper(originInvoker).setReg(true);
         }
 
+        // 使用 OverrideListener 对象，订阅配置规则
         // Subscribe the override data
-        // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call the same service. Because the subscribed is cached key with the name of the service, it causes the subscription information to cover.
+        // FIXME 提供者订阅时，会影响同一JVM即暴露服务，又引用同一服务的的场景，因为subscribed以服务名为缓存的key，导致订阅信息覆盖。
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(registeredProviderUrl);
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
@@ -159,15 +168,35 @@ public class RegistryProtocol implements Protocol {
     }
 
     @SuppressWarnings("unchecked")
+    //延续了以往的Dubbo风格，使用了大量的本地缓存。根据传入的原始的invoker,获取到cacheKey,
+    //从本地缓存bounds中获取，获取不到，就开始了创建的过程
+    //首先创建了一个包装对象invokerDelegete
+    //包含了原始的invoker和providerUrl,
+    //我们可以简单看下这个providerUrl.getProviderUrl(originInvoker)结果是
+    //dubbo://192.168.1.102:20880/com.linyang.test.service.LogService?
+    // anyhost=true&application=log&default.proxy=javassist&default.retries=0&default.timeout=30000&default.version=LATEST
+    // &dubbo=2.5.3&interface=com.linyang.test.service.LogService&methods=modify,create&pid=19026&side=provider&threads=100
+    // &timestamp=1525594853055
+    //所以，当我们本地暴露的时候(Exporter<T>)protocol.export(invokerDelegete)会发生什么？会真正调用的是DubboProtocol
+    //当然我们不能忘了ProtocolFilterWrapper和ProtocolListenerWrapper。OK，那我们再次看看他们到底做了什么，先来看看
+    // ProtocolFilterWrapper
     private <T> ExporterChangeableWrapper<T> doLocalExport(final Invoker<T> originInvoker) {
+        // 获得在 `bounds` 中的缓存 Key
         String key = getCacheKey(originInvoker);
+        // 从 `bounds` 获得，是不是已经暴露过服务
         ExporterChangeableWrapper<T> exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
         if (exporter == null) {
             synchronized (bounds) {
                 exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
+                // 未暴露过，进行暴露服务
                 if (exporter == null) {
+                    //dubbo://192.168.1.102:20880/com.linyang.test.service.LogService?anyhost=true&application=log&default.proxy=javassist&default.retries=0&default.timeout=30000&default.version=LATEST&dubbo=2.5.3&interface=com.linyang.test.service.LogService&methods=modify,create&pid=19026&side=provider&threads=100&timestamp=1525594853055
+                    // 创建 Invoker Delegate 对象
+                    //暴露服务，创建 Exporter 对象
+                    // 使用 创建的Exporter对象 + originInvoker ，创建 ExporterChangeableWrapper 对象
                     final Invoker<?> invokerDelegete = new InvokerDelegete<T>(originInvoker, getProviderUrl(originInvoker));
                     exporter = new ExporterChangeableWrapper<T>((Exporter<T>) protocol.export(invokerDelegete), originInvoker);
+                     // 添加到 `bounds`
                     bounds.put(key, exporter);
                 }
             }
@@ -271,21 +300,29 @@ public class RegistryProtocol implements Protocol {
     @Override
     @SuppressWarnings("unchecked")
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        //第一件事就是替换协议，过来的时候的协议是registry协议，我们重新设置协议，变成注册中心的协议，
+        //例如我们例子中使用的zookeeper.替换协议后，删除了key为registry的内容。替换协议的目的是为了下一步
+        // 获得真实的注册中心的 URL
         url = url.setProtocol(url.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_REGISTRY)).removeParameter(Constants.REGISTRY_KEY);
+        //zookper协议
+        // 获得注册中心
         Registry registry = registryFactory.getRegistry(url);
         if (RegistryService.class.equals(type)) {
             return proxyFactory.getInvoker((T) registry, type, url);
         }
 
+        // 获得服务引用配置参数集合
         // group="a,b" or group="*"
         Map<String, String> qs = StringUtils.parseQueryString(url.getParameterAndDecoded(Constants.REFER_KEY));
         String group = qs.get(Constants.GROUP_KEY);
         if (group != null && group.length() > 0) {
             if ((Constants.COMMA_SPLIT_PATTERN.split(group)).length > 1
                     || "*".equals(group)) {
+                 // 执行服务引用
                 return doRefer(getMergeableCluster(), registry, type, url);
             }
         }
+        // 执行服务引用
         return doRefer(cluster, registry, type, url);
     }
 
@@ -293,24 +330,40 @@ public class RegistryProtocol implements Protocol {
         return ExtensionLoader.getExtensionLoader(Cluster.class).getExtension("mergeable");
     }
 
+    //首先我们想一个问题，这个cluster是怎么来的？答案在我的上一篇文章依赖注入里面
+    //随后我们看下subscribeUrl长啥样
+    //consumer://172.16.197.200/com.linyang.test.service.LogService?application=user&category=providers,configurators,routers&default.check=false&default.retries=0
+    // &default.timeout=30000&default.version=LATEST&dubbo=2.5.3&interface=com.linyang.test.service.LogService&methods=modify,create&pid=2836&revision=1.0-SNAPSHOT&side=consumer&timestamp=1525835306361
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
+        // 创建 RegistryDirectory 对象，并设置注册中心
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
         directory.setRegistry(registry);
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
+        // 创建订阅 URL
         Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
+        //consumer://172.16.197.200/com.linyang.test.service.LogService?
+        // application=user&category=providers,configurators,routers&default.check=false&default.retries=0
+        // &default.timeout=30000&default.version=LATEST&dubbo=2.5.3
+        // &interface=com.linyang.test.service.LogService
+        // &methods=modify,create&pid=2836&revision=1.0-SNAPSHOT&side=consumer&timestamp=1525835306361
         URL subscribeUrl = new URL(Constants.CONSUMER_PROTOCOL, parameters.remove(Constants.REGISTER_IP_KEY), 0, type.getName(), parameters);
+        // 向注册中心注册自己（服务消费者）
         if (!Constants.ANY_VALUE.equals(url.getServiceInterface())
                 && url.getParameter(Constants.REGISTER_KEY, true)) {
+            //订阅
             registry.register(subscribeUrl.addParameters(Constants.CATEGORY_KEY, Constants.CONSUMERS_CATEGORY,
                     Constants.CHECK_KEY, String.valueOf(false)));
         }
+        // 向注册中心订阅服务提供者
         directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY,
                 Constants.PROVIDERS_CATEGORY
                         + "," + Constants.CONFIGURATORS_CATEGORY
                         + "," + Constants.ROUTERS_CATEGORY));
 
+        // 创建 Invoker 对象
         Invoker invoker = cluster.join(directory);
+        // 向本地注册表，注册消费者
         ProviderConsumerRegTable.registerConsumer(invoker, url, subscribeUrl, directory);
         return invoker;
     }

@@ -373,6 +373,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         // 添加到 StaticContext 进行缓存
         //attributes are stored by system context.
         StaticContext.getSystemContext().putAll(attributes);
+        //基于上面提供的属性放到map中，根据这个map创建一个代理对象作为ref。
         ref = createProxy(map);
         ConsumerModel consumerModel = new ConsumerModel(getUniqueServiceName(), ref, interfaceClass.getMethods());
         ApplicationModel.initConsumerModel(getUniqueServiceName(), consumerModel);
@@ -383,10 +384,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         URL tmpUrl = new URL("temp", "localhost", 0, map);
         final boolean isJvmRefer;
         if (isInjvm() == null) {
-            if (url != null && url.length() > 0) { // if a url is specified, don't do local reference
+            if (url != null && url.length() > 0) { //指定URL的情况下，不做本地引用
                 isJvmRefer = false;
             } else {
-                // by default, reference local service if there is
+                //默认情况下如果本地有服务暴露，则引用本地服务.
                 isJvmRefer = InjvmProtocol.getInjvmProtocol().isInjvmRefer(tmpUrl);
             }
         } else {
@@ -400,7 +401,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 logger.info("Using injvm service " + interfaceClass.getName());
             }
         } else {
-            if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
+            if (url != null && url.length() > 0) { // 用户指定URL，指定的URL可能是对点对直连地址，也可能是注册中心URL
                 String[] us = Constants.SEMICOLON_SPLIT_PATTERN.split(url);
                 if (us != null && us.length > 0) {
                     for (String u : us) {
@@ -415,14 +416,23 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         }
                     }
                 }
-            } else { // assemble URL from register center's configuration
+            } else {  // 通过注册中心配置拼装URL
+                //从注册中心获取注册的URL
                 List<URL> us = loadRegistries(false);
+                //例如registry://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?application=user&dubbo=2.5.3
+                // &pid=2836&registry=zookeeper&timestamp=1525835334588
+                //这是原始的链接，随后增加REFER_KEY，他的内容就是传入的数据组成的map。拼接之后是encode后的内容，为了方便观察，我们在文中列出的是decode后的内容
                 if (us != null && !us.isEmpty()) {
                     for (URL u : us) {
                         URL monitorUrl = loadMonitor(u);
                         if (monitorUrl != null) {
                             map.put(Constants.MONITOR_KEY, URL.encode(monitorUrl.toFullString()));
                         }
+                        //registry://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?application=user&dubbo=2.5.3&pid=2836
+                        // &refer=application=user&default.check=false&default.retries=0&default.timeout=30000&default.version=LATEST
+                        // &dubbo=2.5.3&interface=com.linyang.test.service.LogService&methods=modify,create&pid=2836&
+                        // revision=1.0-SNAPSHOT&side=consumer&timestamp=1525835306361&registry=zookeeper&timestamp=1525835306402.
+
                         urls.add(u.addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map)));
                     }
                 }
@@ -431,6 +441,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
 
+            //URL拼装完成后，我们就进入到我们的主角refprotocol.refer(interfaceClass, url)，
+            //开始自己的引用逻辑。如果大家还有印象，就知道我们refprotocol的处理是经过了ProtocolFilterWrapper,ProtocolListenerWrapper，这两个类里的处理，和export是相同的，见到registry直接忽略，最后进入了RegistryProtocol中，为啥是这个协议，不是其他的协议，可以看下我们之前的文章，里面会有答案。RegistryProtocol中的refer方法
             if (urls.size() == 1) {
                 invoker = refprotocol.refer(interfaceClass, urls.get(0));
             } else {
@@ -439,14 +451,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 for (URL url : urls) {
                     invokers.add(refprotocol.refer(interfaceClass, url));
                     if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
-                        registryURL = url; // use last registry url
+                        registryURL = url; // 用了最后一个registry url
                     }
                 }
-                if (registryURL != null) { // registry url is available
-                    // use AvailableCluster only when register's cluster is available
+                if (registryURL != null) { // 有 注册中心协议的URL
+                    // 对有注册中心的Cluster 只用 AvailableCluster
                     URL u = registryURL.addParameter(Constants.CLUSTER_KEY, AvailableCluster.NAME);
                     invoker = cluster.join(new StaticDirectory(u, invokers));
-                } else { // not a registry url
+                } else {  // 不是 注册中心的URL
                     invoker = cluster.join(new StaticDirectory(invokers));
                 }
             }
@@ -467,9 +479,11 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (logger.isInfoEnabled()) {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
-        // create service proxy
+        // 创建服务代理
         return (T) proxyFactory.getProxy(invoker);
     }
+
+
     // 拼接属性配置（环境变量 + properties 属性）到 ConsumerConfig 对象
     private void checkDefault() {
         if (consumer == null) {

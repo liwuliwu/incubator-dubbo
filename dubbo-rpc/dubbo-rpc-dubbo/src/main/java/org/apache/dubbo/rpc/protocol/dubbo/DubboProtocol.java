@@ -241,9 +241,13 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     @Override
+    //每次暴露的时候都创建一个新的DubboExporter，并将其返回上层使用
+    //到目前为止，我们还没有提到本地起服务
+    //因为你想让其他方调用到自己，肯定是要开一个socket
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         URL url = invoker.getUrl();
 
+         // 创建 DubboExporter 对象，并添加到 `exporterMap` 。
         // export service.
         String key = serviceKey(url);
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
@@ -263,8 +267,10 @@ public class DubboProtocol extends AbstractProtocol {
                 stubServiceMethodsMap.put(url.getServiceKey(), stubServiceMethods);
             }
         }
-
+        //但是目前我们还没有看到，但是不用急，他的剩下的内容都包含在openServer(url)根据providerUrl进行开启一个server
+        // 启动通信服务器
         openServer(url);
+        // 初始化序列化优化器
         optimizeSerialization(url);
         return exporter;
     }
@@ -272,7 +278,7 @@ public class DubboProtocol extends AbstractProtocol {
     private void openServer(URL url) {
         // find server.
         String key = url.getAddress();
-        //client can export a service which's only for server to invoke
+        //client 也可以暴露一个只有server可以调用的服务。
         boolean isServer = url.getParameter(Constants.IS_SERVER_KEY, true);
         if (isServer) {
             ExchangeServer server = serverMap.get(key);
@@ -284,29 +290,33 @@ public class DubboProtocol extends AbstractProtocol {
                     }
                 }
             } else {
-                // server supports reset, use together with override
+                //server支持reset,配合override功能使用
                 server.reset(url);
             }
         }
     }
 
     private ExchangeServer createServer(URL url) {
-        // send readonly event when server closes, it's enabled by default
+        //默认开启server关闭时发送readonly事件
         url = url.addParameterIfAbsent(Constants.CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString());
-        // enable heartbeat by default
+        //默认开启heartbeat
         url = url.addParameterIfAbsent(Constants.HEARTBEAT_KEY, String.valueOf(Constants.DEFAULT_HEARTBEAT));
         String str = url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_SERVER);
 
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str))
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
 
+        // 设置编解码器为 `"Dubbo"`
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
+        // 启动服务器
         ExchangeServer server;
         try {
+            //我们看到了Exchangers.bind(url, requestHandler)Dubbo的Exchanger层，他具体的处理逻辑
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
         }
+        // 校验 Client 的 Dubbo SPI 拓展是否存在
         str = url.getParameter(Constants.CLIENT_KEY);
         if (str != null && str.length() > 0) {
             Set<String> supportedTypes = ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions();
@@ -360,11 +370,12 @@ public class DubboProtocol extends AbstractProtocol {
         return invoker;
     }
 
+    //不管是getSharedClient(url)还是initClient(url)最终都会调用initClient(url)，所以我们看看他是怎么初始化的。
     private ExchangeClient[] getClients(URL url) {
-        // whether to share connection
+        //是否共享连接
         boolean service_share_connect = false;
         int connections = url.getParameter(Constants.CONNECTIONS_KEY, 0);
-        // if not configured, connection is shared, otherwise, one connection for one service
+        //如果connections不配置，则共享连接，否则每服务每连接
         if (connections == 0) {
             service_share_connect = true;
             connections = 1;
@@ -420,10 +431,10 @@ public class DubboProtocol extends AbstractProtocol {
         String str = url.getParameter(Constants.CLIENT_KEY, url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_CLIENT));
 
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
-        // enable heartbeat by default
+        //默认开启heartbeat
         url = url.addParameterIfAbsent(Constants.HEARTBEAT_KEY, String.valueOf(Constants.DEFAULT_HEARTBEAT));
 
-        // BIO is not allowed since it has severe performance issue.
+        // BIO存在严重性能问题，暂时不允许使用
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str)) {
             throw new RpcException("Unsupported client type: " + str + "," +
                     " supported client type is " + StringUtils.join(ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions(), " "));
@@ -431,10 +442,11 @@ public class DubboProtocol extends AbstractProtocol {
 
         ExchangeClient client;
         try {
-            // connection should be lazy
+            //设置连接应该是lazy的
             if (url.getParameter(Constants.LAZY_CONNECT_KEY, false)) {
                 client = new LazyConnectExchangeClient(url, requestHandler);
             } else {
+                //出现了我们的Exchanges层client = Exchangers.connect(url ,requestHandler)也就是说对于网络的封装都是通过Exchangers作为入口，剩下的代码基本就和export端的代码相同了，只不过，consumer端的操作一直就是连接上服务端的ip，端口，发送消息罢了。后面就是getExchanger(url).connect(url, handler)getExchanger(url)获得的是HeaderExchanger,调用他的connect方法，他的内部是通过Transporters来连接的
                 client = Exchangers.connect(url, requestHandler);
             }
         } catch (RemotingException e) {

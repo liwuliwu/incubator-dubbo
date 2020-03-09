@@ -221,6 +221,12 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
             }
         }
         // providers
+        //这里面的操作就是根据传入的url就行创建或者更新invoker.重点放在 refreshInvoker(invokerUrls),
+        // 我们看一下传入的urldubbo://172.16.197.200:20880/com.linyang.test.service.LogService
+        // ?anyhost=true&application=log&default.proxy=javassist&default.retries=0&default.timeout=30000
+        // &default.version=LATEST&dubbo=2.5.3&interface=com.linyang.test.service.LogService&methods=modify,create&pid=2747&side=provider
+        // &threads=100&timestamp=1525835283678
+        // 这个就是provider的信息，后面会根据这个provider的url创建出来一个代理，给consumer端的项目使用。下面我们看看refreshInvoker。
         refreshInvoker(invokerUrls);
     }
 
@@ -236,25 +242,28 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     private void refreshInvoker(List<URL> invokerUrls) {
         if (invokerUrls != null && invokerUrls.size() == 1 && invokerUrls.get(0) != null
                 && Constants.EMPTY_PROTOCOL.equals(invokerUrls.get(0).getProtocol())) {
-            this.forbidden = true; // Forbid to access
-            this.methodInvokerMap = null; // Set the method invoker map to null
-            destroyAllInvokers(); // Close all invokers
+            this.forbidden = true; // 禁止访问
+            this.methodInvokerMap = null; // 置空列表
+            destroyAllInvokers(); // 关闭所有Invoker
         } else {
-            this.forbidden = false; // Allow to access
+            this.forbidden = false; // 允许访问
             Map<String, Invoker<T>> oldUrlInvokerMap = this.urlInvokerMap; // local reference
             if (invokerUrls.isEmpty() && this.cachedInvokerUrls != null) {
                 invokerUrls.addAll(this.cachedInvokerUrls);
             } else {
                 this.cachedInvokerUrls = new HashSet<URL>();
-                this.cachedInvokerUrls.addAll(invokerUrls);//Cached invoker urls, convenient for comparison
+                this.cachedInvokerUrls.addAll(invokerUrls);//缓存invokerUrls列表，便于交叉对比
             }
             if (invokerUrls.isEmpty()) {
                 return;
             }
-            Map<String, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
+            //其中有一个toInvokers的方法，就是讲传入的invokerUrls转成具体的invoker,也就是providerurl转成invoker的过程。
+            //toInvokers是将URL列表转成url和对应的invoker的映射关系，就是一个map
+            Map<String, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// 将URL列表转成Invoker列表
+            //toMethodInvokers是将toInvokers的返回值作为入参,返回方法名称作为key，value是可以被执行的invoker的列表,这里说的可以被执行，不是指全部，而是只经过route过滤后的。我们看下toMethodInvokers
             Map<String, List<Invoker<T>>> newMethodInvokerMap = toMethodInvokers(newUrlInvokerMap); // Change method name to map Invoker Map
             // state change
-            // If the calculation is wrong, it is not processed.
+            //如果计算错误，则不进行处理.
             if (newUrlInvokerMap == null || newUrlInvokerMap.size() == 0) {
                 logger.error(new IllegalStateException("urls to invokers error .invokerUrls.size :" + invokerUrls.size() + ", invoker.size :0. urls :" + invokerUrls.toString()));
                 return;
@@ -345,7 +354,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         Set<String> keys = new HashSet<String>();
         String queryProtocols = this.queryMap.get(Constants.PROTOCOL_KEY);
         for (URL providerUrl : urls) {
-            // If protocol is configured at the reference side, only the matching protocol is selected
+            //如果reference端配置了protocol，则只选择匹配的protocol
             if (queryProtocols != null && queryProtocols.length() > 0) {
                 boolean accept = false;
                 String[] acceptProtocols = queryProtocols.split(",");
@@ -386,6 +395,8 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                         enabled = url.getParameter(Constants.ENABLED_KEY, true);
                     }
                     if (enabled) {
+                        //划重点！protocol.refer(serviceType, url)因为我们传过来的协议是dubbo，所以使用的最后处理的就是DubboProtocol，
+                        // 当然少不了的是warpper类的包裹，这个和export是一致的，可以自己进行回顾。下面是DubboProtocl的refer
                         invoker = new InvokerDelegate<T>(protocol.refer(serviceType, url), url, providerUrl);
                     }
                 } catch (Throwable t) {
@@ -464,7 +475,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      */
     private Map<String, List<Invoker<T>>> toMethodInvokers(Map<String, Invoker<T>> invokersMap) {
         Map<String, List<Invoker<T>>> newMethodInvokerMap = new HashMap<String, List<Invoker<T>>>();
-        // According to the methods classification declared by the provider URL, the methods is compatible with the registry to execute the filtered methods
+        // 按提供者URL所声明的methods分类，兼容注册中心执行路由过滤掉的methods
         List<Invoker<T>> invokersList = new ArrayList<Invoker<T>>();
         if (invokersMap != null && invokersMap.size() > 0) {
             for (Invoker<T> invoker : invokersMap.values()) {

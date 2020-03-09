@@ -413,6 +413,7 @@ public abstract class AbstractRegistry implements Registry {
             List<URL> categoryList = entry.getValue();
             categoryNotified.put(category, categoryList);
             saveProperties(url);
+            //所以调用的就是他的notify方法。
             listener.notify(categoryList);
         }
     }
